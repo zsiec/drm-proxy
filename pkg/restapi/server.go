@@ -15,7 +15,7 @@ import (
 func NewServer(timeout time.Duration, port int, contentKeySvc drmproxy.KeyService) (*http.Server, error) {
 	mux := http.NewServeMux()
 
-	mux.Handle("/fairplay/", fairplayHandler{contentKeySvc: contentKeySvc})
+	mux.Handle("/irdeto/", drmProxy{contentKeySvc: contentKeySvc})
 
 	return &http.Server{
 		Handler:      mux,
@@ -26,11 +26,11 @@ func NewServer(timeout time.Duration, port int, contentKeySvc drmproxy.KeyServic
 	}, nil
 }
 
-type fairplayHandler struct {
+type drmProxy struct {
 	contentKeySvc drmproxy.KeyService
 }
 
-func (h fairplayHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h drmProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reqID := uuid.New()
 	log.Printf("started handling request url=%s, reqID=%s", r.URL, reqID)
 
