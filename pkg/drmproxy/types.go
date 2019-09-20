@@ -8,13 +8,16 @@ type KeyService interface {
 // to a request for an asset's key information following a structure recognized
 // by the nginx-vod-module
 type ContentKeyResponse []struct {
-	Pssh []struct {
-		Data string `json:"data"`
-		UUID string `json:"uuid"`
-	} `json:"pssh"`
+	Pssh  []Pssh `json:"pssh"`
 	Key   string `json:"key"`
 	KeyID string `json:"key_id"`
 	IV    string `json:"iv"`
+}
+
+// Pssh holds the pssh data with a key system uuid
+type Pssh struct {
+	Data string `json:"data"`
+	UUID string `json:"uuid"`
 }
 
 // ContentCfg holds information about an asset

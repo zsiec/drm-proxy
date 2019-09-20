@@ -15,16 +15,20 @@ type GetContentKeyResponse struct {
 	ContentId      string         `xml:"contentId,attr"`
 	ContentKeyList ContentKeyList `xml:"ContentKeyList"`
 	DRMSystemList  struct {
-		Text      string `xml:",chardata"`
-		DRMSystem struct {
-			Text              string `xml:",chardata"`
-			SystemId          string `xml:"systemId,attr"`
-			Kid               string `xml:"kid,attr"`
-			URIExtXKey        string `xml:"URIExtXKey"`
-			KeyFormat         string `xml:"KeyFormat"`
-			KeyFormatVersions string `xml:"KeyFormatVersions"`
-		} `xml:"DRMSystem"`
+		Text       string      `xml:",chardata"`
+		DRMSystems []DRMSystem `xml:"DRMSystem"`
 	} `xml:"DRMSystemList"`
+}
+
+type DRMSystem struct {
+	Text                  string `xml:",chardata"`
+	SystemId              string `xml:"systemId,attr"`
+	Kid                   string `xml:"kid,attr"`
+	URIExtXKey            string `xml:"URIExtXKey"`
+	KeyFormat             string `xml:"KeyFormat"`
+	KeyFormatVersions     string `xml:"KeyFormatVersions"`
+	PSSH                  string `xml:"PSSH"`
+	ContentProtectionData string `xml:"ContentProtectionData"`
 }
 
 type ContentKeyList struct {
@@ -49,14 +53,14 @@ type ContentKeySecret struct {
 	PlainValue string `xml:"PlainValue"`
 }
 
-const fairplayReqTempl = `<cpix:CPIX contentId="{{.ContentID}}" xmlns:cpix="urn:dashif:org:cpix" xmlns:pskc="urn:ietf:params:xml:ns:keyprov:pskc" xmlns:speke="urn:aws:amazon:com:speke">
-
+const reqTempl = `<cpix:CPIX contentId="{{.ContentID}}" xmlns:cpix="urn:dashif:org:cpix" xmlns:pskc="urn:ietf:params:xml:ns:keyprov:pskc" xmlns:speke="urn:aws:amazon:com:speke">
     <cpix:ContentKeyList>
         <cpix:ContentKey kid="{{.KeyID}}">
-
         </cpix:ContentKey>
     </cpix:ContentKeyList>
     <cpix:DRMSystemList>
         <cpix:DRMSystem systemId="94ce86fb-07ff-4f43-adb8-93d2fa968ca2" kid="{{.KeyID}}"/>
+        <cpix:DRMSystem systemId="9a04f079-9840-4286-ab92-e65be0885f95" kid="{{.KeyID}}"/>
+        <cpix:DRMSystem systemId="edef8ba9-79d6-4ace-a3c8-27dcd51d21ed" kid="{{.KeyID}}"/>
     </cpix:DRMSystemList>
 </cpix:CPIX>`

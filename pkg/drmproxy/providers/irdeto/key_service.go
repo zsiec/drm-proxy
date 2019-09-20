@@ -19,6 +19,9 @@ const (
 	headerKeyAuthorization = "Authorization"
 
 	pathLicenseKeyRequestTmpl = "/tkm/v1/cbsi/contents/%s/copyProtectionData"
+
+	widevineSystemUUID = "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+	widevinePSSHBoxOffset = 32
 )
 
 type KeyService interface {
@@ -59,6 +62,7 @@ func (s *IrdetoKeySvc) ContentKeyFrom(cfg drmproxy.ContentCfg) (drmproxy.Content
 	if err != nil {
 		return drmproxy.ContentKeyResponse{}, fmt.Errorf("reading resp body from io.Reader %v, %w", resp.Body, err)
 	}
+	defer resp.Body.Close()
 
 	respObj := GetContentKeyResponse{}
 	err = xml.Unmarshal(respBody, &respObj)
@@ -66,21 +70,39 @@ func (s *IrdetoKeySvc) ContentKeyFrom(cfg drmproxy.ContentCfg) (drmproxy.Content
 		return drmproxy.ContentKeyResponse{}, fmt.Errorf("unmarshalling GetContentKeyResponse=%v into xml, %w", respObj, err)
 	}
 
-	base64UUID, err := base64EncodedUUID(cfg.KeyID)
+	base64KeyID, err := base64EncodedUUID(cfg.KeyID)
 	if err != nil {
 		return drmproxy.ContentKeyResponse{}, err
 	}
 
+	var psshCfgs []drmproxy.Pssh
+	for _, drmSystem := range respObj.DRMSystemList.DRMSystems {
+		if drmSystem.ContentProtectionData == "" {
+			continue
+		}
+
+		data, err := psshDataFor(drmSystem, base64KeyID, cfg.ContentID)
+		if err != nil {
+			return drmproxy.ContentKeyResponse{}, err
+		}
+
+		psshCfgs = append(psshCfgs, drmproxy.Pssh{
+			Data: data,
+			UUID: drmSystem.SystemId,
+		})
+	}
+
 	return drmproxy.ContentKeyResponse{{
+		Pssh:  psshCfgs,
 		Key:   respObj.ContentKeyList.ContentKey.Data.Secret.PlainValue,
-		KeyID: base64UUID,
+		KeyID: base64KeyID,
 		IV:    respObj.ContentKeyList.ContentKey.ExplicitIV,
 	}}, nil
 }
 
 func reqBodyWith(cfg drmproxy.ContentCfg) (io.Reader, error) {
 	filled := bytes.Buffer{}
-	t := template.Must(template.New("fpReq").Parse(fairplayReqTempl))
+	t := template.Must(template.New("req").Parse(reqTempl))
 	err := t.Execute(&filled, cfg)
 	if err != nil {
 		return nil, err
@@ -98,4 +120,16 @@ func base64EncodedUUID(rawUUID string) (string, error) {
 	paddedBase64 := fmt.Sprintf("%-24s", base64.RawStdEncoding.EncodeToString(uuid[:]))
 
 	return strings.Replace(paddedBase64, " ", "=", -1), nil
+}
+
+func psshDataFor(system DRMSystem, keyID, contentID string) (string, error) {
+	if system.SystemId == widevineSystemUUID {
+		pssh, err := base64.StdEncoding.DecodeString(system.PSSH)
+		if err != nil {
+			return "", err
+		}
+		return base64.StdEncoding.EncodeToString(pssh[widevinePSSHBoxOffset:]), nil
+	}
+
+	return system.PSSH, nil
 }
